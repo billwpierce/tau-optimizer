@@ -6,20 +6,21 @@
 #include <utility> // std::pair
 #include <stdexcept> // std::runtime_error
 #include <sstream> // std::stringstream
+#include <cstdlib>
 
 using namespace std;
 
 vector<vector<string> > parseCSV(string filename)
 {
-    ifstream data(filename);
-    string line;
-    vector<vector<string> > parsedCsv;
-    while(getline(data,line))
+    std::ifstream data(filename);
+    std::string line;
+    std::vector<std::vector<std::string> > parsedCsv;
+    while(std::getline(data,line))
     {
-        stringstream lineStream(line);
-        string cell;
-        vector<string> parsedRow;
-        while(getline(lineStream,cell,','))
+        std::stringstream lineStream(line);
+        std::string cell;
+        std::vector<std::string> parsedRow;
+        while(std::getline(lineStream,cell,','))
         {
             parsedRow.push_back(cell);
         }
@@ -33,19 +34,23 @@ class tauState {
 public:
     double tau_value;
     double s;
+    bool defaultIncludeTitles;
     vector<vector<string> > data;
 
-    tauState(double tau, vector<vector<string> > dataSet){
+    // int getNumRows(bool includeTitles); double getData(int row, int column, bool includeTitles); double getThickness(int row); double getMeasured(int row); double getSigmaTrans(int row); double calculateStatistic();
+
+    tauState(double tau, vector<vector<string> > dataSet, bool includeTitles){
         tau_value = tau;
         data = dataSet;
-        s = calculateStatistic();
+        defaultIncludeTitles = includeTitles;
+        s = calculateStatistic(defaultIncludeTitles);
     }
 
     int getNumRows(bool includeTitles){
         if(includeTitles){
-            return data[0].size();
+            return data.size();
         }else{
-            return data[0].size() - 1;
+            return data.size() - 1;
         }
     }
 
@@ -61,26 +66,33 @@ public:
         }
     }
 
-    double getThickness(int row){
-        return getData(row, 0, false);
+    double getThickness(int row, bool includeTitles){
+        return getData(row, 0, includeTitles);
     }
 
-    double getMeasured(int row){
-        return getData(row, 1, false);
+    double getMeasured(int row, bool includeTitles){
+        return getData(row, 1, includeTitles);
     }
 
-    double getSigmaTrans(int row){
-        return getData(row, 2, false);
+    double getSigmaTrans(int row, bool includeTitles){
+        return getData(row, 2, includeTitles);
     }
 
-    double calculateStatistic(){
+    double calculateStatistic(bool includeTitles){
         double tau = tau_value;
-        int point_num = getNumRows(false);
+        int point_num = getNumRows(includeTitles);
         double curr_error = 0;
-        for(int i = 0; i < point_num; i++){
-            double ev_trans = pow(0.5, getThickness(i)/tau);
-            double error = ev_trans - getMeasured(i);
-            double point_error = pow(error/getSigmaTrans(i), 2);
+        int ioff = 0;
+        for(int i = ioff; i < point_num + ioff; i++){
+            double ev_trans = pow(0.5, getThickness(i, includeTitles)/tau);
+            double error = ev_trans - getMeasured(i, includeTitles);
+            double sigmaTrans = getSigmaTrans(i, includeTitles);
+            double point_error;
+            if(sigmaTrans == 0){
+                point_error = 0;
+            }else{
+                point_error = pow(error/sigmaTrans, 2);
+            }
             curr_error += point_error;
         }
         return curr_error;
@@ -90,18 +102,19 @@ public:
 
 
 int main(int argc, char** argv) {
-    vector<vector<string> > dataSet = parseCSV("greenalum.csv");
-    int accuracy_digit = 5;
+    vector<vector<string> > dataSet = parseCSV("greenplastic.csv");
+    int accuracy_digit = 3;
     double curr_accuracy_digit = 1;
     double tau_init = 0.5;
     double curr_tau = tau_init;
-    double run = true;
+    bool doIncludeTitles = false;
+    bool run = true;
     while(run){
         double high_tau = curr_tau + pow(10, -1 * curr_accuracy_digit);
         double low_tau = curr_tau - pow(10, -1 * curr_accuracy_digit);
-        tauState high_state = tauState(high_tau, dataSet);
-        tauState low_state = tauState(low_tau, dataSet);
-        tauState curr_state = tauState(curr_tau, dataSet);
+        tauState high_state = tauState(high_tau, dataSet, doIncludeTitles);
+        tauState low_state = tauState(low_tau, dataSet, doIncludeTitles);
+        tauState curr_state = tauState(curr_tau, dataSet, doIncludeTitles);
         if(high_state.s < curr_state.s){
             curr_tau = high_tau;
         }else if(low_state.s < curr_state.s){
@@ -114,8 +127,8 @@ int main(int argc, char** argv) {
             }
         }
     }
-    tauState final_state = tauState(curr_tau, dataSet);
-    cout << "Tau: " << curr_tau;
-    cout << "S-Statistic: " << final_state.s;
+    tauState final_state = tauState(curr_tau, dataSet, doIncludeTitles);
+    cout << "Tau: " << curr_tau << "\n";
+    cout << "S-Statistic: " << final_state.s << "\n";
     return 0;
 }
