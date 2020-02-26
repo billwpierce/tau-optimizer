@@ -102,7 +102,7 @@ public:
 
 
 int main(int argc, char** argv) {
-    vector<vector<string> > dataSet = parseCSV("greenplastic.csv");
+    vector<vector<string> > dataSet = parseCSV("yellowalum.csv");
     int accuracy_digit = 3;
     double curr_accuracy_digit = 1;
     double tau_init = 0.5;
